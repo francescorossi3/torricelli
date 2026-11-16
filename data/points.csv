@@ -1,0 +1,75 @@
+station,name,lat,lon,elev,region
+16008,S. Valentino Alla Muta,46.75,10.5333,1459,italia
+16021,Passo Rolle,46.3,11.7833,2004,italia
+16022,Paganella,46.15,11.0333,2125,italia
+16033,Dobbiaco,46.7333,12.2167,1222,italia
+16036,Aviano,46.0333,12.6,128,italia
+16052,Pian Rosa,45.9333,7.7,3480,italia
+16061,Torino / Bric Della Croce,45.0333,7.7333,709,italia
+16080,Milano / Linate,45.4333,9.2833,107,italia
+16084,Piacenza,44.9167,9.7333,134,italia
+16089,Verona / Rivoltella,45.4644,10.5553,64,italia
+16098,Treviso / Istrana,45.6833,12.1,45,italia
+16108,Ronchi Dei Legionari,45.8167,13.4833,12,italia
+16119,Passo Dei Giovi,44.6333,8.9333,468,italia
+16122,Albenga,44.05,8.1167,45,italia
+16125,Sarzana / Luni,44.0833,9.9833,9,italia
+16134,Monte Cimone,44.2,10.7,2165,italia
+16138,Ferrara,44.8333,11.6167,10,italia
+16146,Punta Marina,44.45,12.3,2,italia
+16158,Pisa / S. Giusto,43.6833,10.3833,2,italia
+16170,Firenze / Peretola,43.8,11.2,40,italia
+16172,Arezzo,43.4667,11.85,248,italia
+16181,Perugia,43.0833,12.5,208,italia
+16191,Falconara,43.6167,13.3667,12,italia
+16206,Grosseto,42.75,11.0667,5,italia
+16216,Viterbo,42.4333,12.05,300,italia
+16219,Monte Terminillo,42.4667,12.9833,1874,italia
+16230,Pescara,42.4333,14.2,10,italia
+16232,Termoli,42.0,15.0,16,italia
+16235,Roma / Urbe,41.95,12.5,18,italia
+16244,Frosinone,41.6333,13.3,180,italia
+16252,Campobasso,41.5667,14.65,793,italia
+16261,Amendola,41.5333,15.7167,57,italia
+16263,Trevico,41.05,15.2333,1085,italia
+16266,Vieste / Lupetto,41.8881,16.1647,3,italia
+16270,Bari / Palese Macchie,41.1333,16.7833,34,italia
+16288,Caserta / Sala,41.0708,14.3236,61,italia
+16294,Capri,40.55,14.2,160,italia
+16316,Latronico,40.0833,16.0167,888,italia
+16320,Brindisi,40.65,17.95,15,italia
+16325,Marina Di Ginosa,40.4333,16.8833,2,italia
+16337,Bonifati,39.5833,15.8833,484,italia
+16350,Crotone,39.0,17.0667,155,italia
+16360,S. Maria Di Leuca,39.8167,18.35,104,italia
+16362,Lamezia Terme,38.9,16.25,15,italia
+16405,Palermo / Punta Raisi,38.1833,13.1,21,italia
+16415,Isola Di Salina,38.5833,14.8667,46,italia
+16422,Reggio Calabria,38.0667,15.65,11,italia
+16429,Trapani / Birgi,37.9167,12.5,7,italia
+16436,Sciacca / San Carlo,37.5136,13.1267,124,italia
+16450,Enna,37.5667,14.2833,940,italia
+16453,Gela,37.0833,14.2167,11,italia
+16460,Catania / Fontanarossa,37.4667,15.05,11,italia
+16470,Pantelleria,36.8167,11.9667,191,italia
+16480,Cozzo Spadaro,36.6833,15.1333,46,italia
+16520,Alghero,40.6333,8.2833,23,italia
+16531,Olbia / Costa Smeralda,40.9,9.5167,11,italia
+16539,Capo Frasca,39.75,8.4667,89,italia
+16541,Perdasdefogu,39.6667,9.4333,608,italia
+16546,Decimomannu,39.35,8.9667,29,italia
+16564,Capo Carbonara,39.1,9.5167,116,italia
+RVUS,Railroad Valley (USA),38.5,-115.69,,radcalnet
+GONA,Gobabeb (Namibia),-23.5,15.09,,radcalnet
+LCFR,La Crau (France),43.56,4.86,,radcalnet
+BSCN,Baotou sand (China),40.87,109.62,,radcalnet
+BTCN,Baotou artificial (China),40.85,109.63,,radcalnet
+GHNA,Gobabeb (Namibia) – desert,-23.60153,15.12589,,hypernets
+DEGE,Demmin (Germany) – cropland,53.868278,13.268556,,hypernets
+JAES,Järvselja (Estonia) – forest,58.281975,27.312959,,hypernets
+LOBE,Lonzée (Belgium) – cropland,50.551493,4.745911,,hypernets
+WWUK,Wytham Woods (UK) – forest ~,51.7746,-1.3384,,hypernets
+PEAN,Princess Elisabeth (Antarctica) – snow ~,-71.9401,23.347,,hypernets
+IFAR,IFEVA Buenos Aires (Argentina) – grass ~,-34.589,-58.482,,hypernets
+AAOT,Acqua Alta (Italy) – water ~,45.3139,12.5083,,hypernets
+ZEBE,Zeebrugge (Belgium) – water ~,51.362,3.12,,hypernets
