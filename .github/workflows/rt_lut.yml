@@ -1,8 +1,8 @@
 name: Tabella RT 6S (LUT)
 
 # Calcolo una tantum (o dopo modifiche) della tabella di trasferimento radiativo 6S.
-#   set = s2     -> 13 bande Sentinel-2 (circa 10 min)
-#   set = hyper  -> 400-2500 nm ogni 20 nm, 106 bande (circa 1-2 ore)
+#   set = s2     -> 13 bande Sentinel-2
+#   set = hyper  -> 400-2500 nm ogni 10 nm (211 lunghezze d'onda), diviso su 6 macchine in parallelo (~1 ora)
 on:
   workflow_dispatch:
     inputs:
@@ -14,28 +14,48 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: data-writes
-  cancel-in-progress: false
-
 jobs:
   lut:
     runs-on: ubuntu-latest
     timeout-minutes: 350
+    strategy:
+      matrix:
+        part: [0, 1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v4
       - uses: mamba-org/setup-micromamba@v2
         with:
           environment-name: rt
-          create-args: python=3.12 sixs py6s numpy pyyaml
+          create-args: python=3.12 sixs py6s numpy
           init-shell: bash
-      - name: LUT 6S
+      - name: LUT 6S (parte ${{ matrix.part }})
         shell: bash -el {0}
-        run: SIXS_PATH=$(which sixs) python -u scripts/01_build_rt_lut.py --set ${{ inputs.set }} --jobs 4
-      - name: Salva nel repository
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ "${{ inputs.set }}" = "hyper" ]; then P="--part ${{ matrix.part }} --nparts 6"; else [ "${{ matrix.part }}" = "0" ] || exit 0; P=""; fi
+          SIXS_PATH=$(which sixs) python -u scripts/01_build_rt_lut.py --set ${{ inputs.set }} --jobs 4 $P
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lut-${{ matrix.part }}
+          path: data/rt/lut_*.json
+          if-no-files-found: ignore
+
+  save:
+    needs: lut
+    runs-on: ubuntu-latest
+    concurrency:
+      group: data-writes
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: data/rt/parts
+      - name: Unisci e salva
+        run: |
+          if [ "${{ inputs.set }}" = "hyper" ]; then python scripts/01b_merge_lut.py hyper; else cp data/rt/parts/*/lut_s2.json data/rt/; fi
+          rm -rf data/rt/parts
+          git config user.name "torricelli-bot"
+          git config user.email "actions@users.noreply.github.com"
           git add data/rt
           git commit -m "LUT 6S ${{ inputs.set }}" || exit 0
           git pull --rebase origin main && git push

@@ -39,6 +39,9 @@ from Py6S import (AeroProfile, Altitudes, AtmosCorr, AtmosProfile, Geometry, Gro
 ap = argparse.ArgumentParser()
 ap.add_argument("--set", default="s2", choices=["s2", "hyper"])
 ap.add_argument("--jobs", type=int, default=os.cpu_count())
+ap.add_argument("--part", type=int, default=0, help="parte da calcolare (0..nparts-1), per dividere il lavoro su piu' macchine")
+ap.add_argument("--nparts", type=int, default=1)
+ap.add_argument("--step", type=int, default=10, help="passo spettrale del set hyper [nm]")
 args, _ = ap.parse_known_args()
 
 SIXS = os.environ.get("SIXS_PATH", "sixs")
@@ -50,7 +53,9 @@ if args.set == "s2":
     BANDS = {f"S2_{b}": getattr(PredefinedWavelengths, f"S2A_MSI_{b}") for b in
              ["01", "02", "03", "04", "05", "06", "07", "08", "8A", "09", "10", "11", "12"]}
 else:
-    BANDS = {f"WL_{int(nm)}": nm / 1000 for nm in np.arange(400, 2501, 20)}
+    BANDS = {f"WL_{int(nm)}": nm / 1000 for nm in np.arange(400, 2501, args.step)}
+if args.nparts > 1:                                   # solo una parte delle bande (lavoro diviso)
+    BANDS = {b: v for k, (b, v) in enumerate(BANDS.items()) if k % args.nparts == args.part}
 KEYS = ["t_down", "t_up", "t_gas", "l_path", "e_dir", "e_dif", "s_alb"]
 
 
@@ -84,7 +89,8 @@ combos = list(itertools.product(W, AOT, SZA, ALT))
 print(f"{args.set}: {len(BANDS)} bande x {len(combos)} combinazioni = {len(BANDS) * len(combos)} esecuzioni 6S")
 t0 = time.time()
 # una banda alla volta, con salvataggio parziale: se il calcolo si interrompe riparte da dove era arrivato
-part = ROOT / "data" / "rt" / f"_partial_{args.set}.json"
+sfx = f"{args.set}" + (f"_part{args.part}" if args.nparts > 1 else "")
+part = ROOT / "data" / "rt" / f"_partial_{sfx}.json"
 part.parent.mkdir(parents=True, exist_ok=True)
 done = json.load(open(part)) if part.exists() else {}
 arr = {b: np.array(done[b]) if b in done else np.full((len(W), len(AOT), len(SZA), len(ALT), len(KEYS)), np.nan) for b in BANDS}
@@ -102,8 +108,8 @@ out = {"model": "6S (Py6S), nadir view, continental aerosol, ozone 0.30 cm-atm, 
        "axes": {"w_gcm2": W, "aot550": AOT, "sza_deg": SZA, "alt_km": ALT}, "outputs": KEYS,
        "units": {"l_path": "W m-2 sr-1 um-1", "e_dir": "W m-2 um-1", "e_dif": "W m-2 um-1"},
        "bands": {b: {"wl_um": (float(BANDS[b]) if args.set == "hyper" else None),
-                     "values": np.round(arr[b], 5).tolist()} for b in BANDS}}
-path = ROOT / "data" / "rt" / f"lut_{args.set}.json"
+                     "values": np.vectorize(lambda x: float(f"{x:.4g}"))(arr[b]).tolist()} for b in BANDS}}
+path = ROOT / "data" / "rt" / f"lut_{sfx}.json"
 path.parent.mkdir(parents=True, exist_ok=True)
 with open(path, "w") as f:
     json.dump(out, f, separators=(",", ":"))
