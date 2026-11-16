@@ -1,0 +1,54 @@
+name: Aggiornamento giornaliero
+
+on:
+  schedule:
+    - cron: "41 7 * * *"        # ogni giorno alle 07:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: data-writes
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPENMETEO_API_KEY: ${{ secrets.OPENMETEO_API_KEY }}
+      USER_AGENT: "torricelli github.com/${{ github.repository }}"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Database atmosferico (vapore, aerosol, profili, densita', RT 6S, TIR)
+        run: python -u scripts/02_fetch_atmos.py
+      - name: Sito
+        run: python -u scripts/03_build_site.py
+      - name: Salva i dati
+        run: |
+          git config user.name "torricelli-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data
+          git commit -m "Dati $(date -u +%F)" || echo "niente da salvare"
+          git pull --rebase origin main && git push
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/site
+
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Torricelli</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div>
+    <h1>Torricelli</h1>
+    <p class="sub" data-it="Parametri atmosferici per la correzione atmosferica dei dati satellitari: vapore acqueo, aerosol, profili, densità dell'aria, temperatura dell'aria e della superficie, trasferimento radiativo VNIR-SWIR (6S) e TIR">Atmospheric parameters for the atmospheric correction of satellite data: water vapour, aerosols, profiles, air density, air and surface temperature, VNIR-SWIR (6S) and TIR radiative transfer</p>
+  </div>
+  <div class="lang"><button id="en" class="on">EN</button><button id="it">IT</button></div>
+</header>
+<main>
+  <div class="card prose">
+    <h3 data-it="Il nome">The name</h3>
+    <p data-it="Evangelista Torricelli (1608–1647), allievo di Galileo, inventò il barometro (1643) e dimostrò che l'aria ha un peso: «noi viviamo sommersi nel fondo d'un pelago d'aria». Questo progetto misura proprio quel «mare d'aria» che sta tra il satellite e il suolo.">Evangelista Torricelli (1608–1647), Galileo's pupil, invented the barometer (1643) and showed that air has weight: “we live submerged at the bottom of an ocean of air”. This project measures exactly that ocean of air between the satellite and the ground.</p>
+    <p data-it="Torricelli è il back end atmosferico di una famiglia di progetti: Prognostica (previsione meteo) e Columella (agricoltura) leggono da qui le tabelle di trasferimento radiativo e i parametri atmosferici; Torricelli legge da Prognostica l'elenco di stazioni e siti di calibrazione.">Torricelli is the atmospheric back end of a family of projects: <a href="https://francescorossi3.github.io/prognostica/">Prognostica</a> (weather forecast) and <a href="https://francescorossi3.github.io/columella/">Columella</a> (agriculture) read the radiative-transfer tables and atmospheric parameters from here; Torricelli reads the list of stations and calibration sites from Prognostica.</p>
+  </div>
+  <div class="controls">
+    <label><span data-it="Punto">Point</span> <select id="pt"></select></label>
+    <label><span data-it="Grandezza">Quantity</span> <select id="var"></select></label>
+  </div>
+  <div class="card"><div class="table-wrap"><table id="tab"></table></div></div>
+  <div class="card prose">
+    <h3 data-it="Dati per altri siti e programmi">Data for other sites and programs</h3>
+    <ul>
+      <li><code>data/rt/lut_s2.json</code> – <span data-it="tabella 6S per le bande Sentinel-2 (vapore × AOD550 × zenit solare × quota): T↓, T↑, T gas, radianza di percorso, E diretta e diffusa, albedo sferico">6S table for the Sentinel-2 bands (water vapour × AOD550 × solar zenith × altitude): T↓, T↑, T gas, path radiance, direct and diffuse E, spherical albedo</span></li>
+      <li><code>data/rt/lut_hyper.json</code> – <span data-it="stessa tabella 400–2500 nm ogni 20 nm (PRISMA, EnMAP)">same table 400–2500 nm every 20 nm (PRISMA, EnMAP)</span></li>
+      <li><code>data/latest.json</code> – <span data-it="ultime 24 h e previsione a 3 giorni per ogni punto">last 24 h and 3-day forecast at every point</span></li>
+      <li><span data-it="Archivio orario completo (oltre 90 colonne, anche profili 1000–200 hPa e parametri per banda) in CSV:">Full hourly archive (90+ columns, including 1000–200 hPa profiles and per-band parameters) as CSV:</span>
+        <a href="https://github.com/francescorossi3/torricelli/tree/main/data/csv/atmos">data/csv/atmos</a></li>
+    </ul>
+    <h3 data-it="Metodo">Method</h3>
+    <p data-it="Superficie e profili: ECMWF IFS 0,25° (riserva GFS) tramite Open-Meteo; aerosol: CAMS. Densità dell'aria ρ = p/(Rd·Tv). VNIR-SWIR: codice 6S (Py6S), vista al nadir, aerosol continentale, ozono 0,30 cm-atm. TIR Landsat 8/9 banda 10: funzioni del vapore acqueo di Jiménez-Muñoz et al. (2014). Aggiornamento automatico ogni giorno con GitHub Actions.">Surface and profiles: ECMWF IFS 0.25° (GFS fallback) via Open-Meteo; aerosols: CAMS. Air density ρ = p/(R<sub>d</sub>·T<sub>v</sub>). VNIR-SWIR: 6S code (Py6S), nadir view, continental aerosol, ozone 0.30 cm-atm. TIR Landsat 8/9 band 10: water-vapour functions of Jiménez-Muñoz et al. (2014). Updated automatically every day by GitHub Actions.</p>
+  </div>
+</main>
+<footer><span data-it="© 2026 Francesco Rossi · codice: tutti i diritti riservati · dati: CC BY-NC 4.0 · fonti: Open-Meteo (CC BY 4.0), ECMWF, CAMS">© 2026 Francesco Rossi · code: all rights reserved · data: CC BY-NC 4.0 · sources: Open-Meteo (CC BY 4.0), ECMWF, CAMS</span></footer>
+<script src="app.js"></script>
+</body>
+</html>
