@@ -60,7 +60,7 @@ if s2.empty or mod.empty:
 s2 = s2.sort_values("valid_frac_2000", ascending=False).drop_duplicates(["site", "time_utc"])
 df = (s2.merge(obs, on=["site", "time_utc"], how="inner").merge(mod, on=["site", "time_utc"], how="left")
       .merge(ter, on="site", how="left"))
-doy = df["time_utc"].dt.dayofyear
+doy = df["time_utc"].dt.day_of_year
 df["doy_sin"], df["doy_cos"] = np.sin(2 * np.pi * doy / 365.25), np.cos(2 * np.pi * doy / 365.25)
 df["day"] = df["time_utc"].dt.floor("D")
 DROP = {"site", "item", "s2_time", "time_utc", "day", "tcwv", "aod550", "aod500", "angstrom", "n"}
@@ -113,7 +113,8 @@ def krige(train, test, vg):
         return out
     nug, sill, a = vg
     cov = lambda h: np.where(h == 0, nug + sill, sill * np.exp(-h / a))   # noqa: E731
-    by_day = {d: g for d, g in train.groupby("day")}
+    # un solo residuo per sito e giorno (media): punti coincidenti renderebbero singolare il sistema
+    by_day = {d: g.groupby(["lat", "lon"], as_index=False)["res"].mean() for d, g in train.groupby("day")}
     for k, row in enumerate(test.itertuples()):
         g = by_day.get(row.day)
         if g is None:
@@ -126,11 +127,13 @@ def krige(train, test, vg):
         la, lo, r = g["lat"].to_numpy()[near], g["lon"].to_numpy()[near], g["res"].to_numpy()[near]
         n = len(near)
         A = np.ones((n + 1, n + 1)); A[n, n] = 0
-        A[:n, :n] = cov(hav_km(la[:, None], lo[:, None], la[None, :], lo[None, :]))
+        A[:n, :n] = cov(hav_km(la[:, None], lo[:, None], la[None, :], lo[None, :])) + np.eye(n) * 1e-9 * (nug + sill)
         b = np.ones(n + 1); b[:n] = cov(dist[near])
         try:
             w = np.linalg.solve(A, b)[:n]
         except np.linalg.LinAlgError:
+            continue
+        if not np.all(np.isfinite(w)) or np.abs(w).sum() > 5:          # sistema mal condizionato: nessuna correzione
             continue
         out[k] = w @ r
     return out
