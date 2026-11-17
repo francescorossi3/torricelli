@@ -1,0 +1,43 @@
+name: Misure di validazione (AERONET)
+
+on:
+  schedule:
+    - cron: "23 9 * * *"        # ogni giorno alle 09:23 UTC (dopo l'aggiornamento giornaliero)
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Primo giorno AAAA-MM-GG (vuoto = ultimi 7 giorni)"
+        required: false
+      end:
+        description: "Ultimo giorno AAAA-MM-GG (vuoto = oggi)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-writes
+  cancel-in-progress: false
+
+jobs:
+  obs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      USER_AGENT: "torricelli github.com/${{ github.repository }}"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: AERONET (AOD 550 nm e vapore acqueo, tutti i siti)
+        run: python -u scripts/04_fetch_aeronet.py ${{ inputs.start && format('--start {0}', inputs.start) || '' }} ${{ inputs.end && format('--end {0}', inputs.end) || '' }}
+      - name: Salva i dati
+        run: |
+          git config user.name "torricelli-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data
+          git commit -m "Misure AERONET $(date -u +%F)" || echo "niente da salvare"
+          git pull --rebase origin main && git push
