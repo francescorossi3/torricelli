@@ -166,17 +166,20 @@ if lut_path.exists():
     lut = json.load(open(lut_path))
     ax = lut["axes"]
     grid = (ax["w_gcm2"], ax["aot550"], ax["sza_deg"], ax["alt_km"])
-    X = np.column_stack([np.clip(df["w_gcm2"], ax["w_gcm2"][0], ax["w_gcm2"][-1]),
-                         np.clip(df["aod550"].fillna(0.1), ax["aot550"][0], ax["aot550"][-1]),
-                         np.clip(df["sza_deg"], 0, ax["sza_deg"][-1]),
-                         np.clip(df["elev"].fillna(0) / 1000, ax["alt_km"][0], ax["alt_km"][-1])])
-    ok = (df["sza_deg"] < 80).values & np.isfinite(X).all(1)
+    num = lambda c: pd.to_numeric(df[c], errors="coerce").astype(float).to_numpy()   # colonne miste (None) -> float
+    X = np.column_stack([np.clip(num("w_gcm2"), ax["w_gcm2"][0], ax["w_gcm2"][-1]),
+                         np.clip(np.nan_to_num(num("aod550"), nan=0.1), ax["aot550"][0], ax["aot550"][-1]),
+                         np.clip(num("sza_deg"), 0, ax["sza_deg"][-1]),
+                         np.clip(np.nan_to_num(num("elev"), nan=0.0) / 1000, ax["alt_km"][0], ax["alt_km"][-1])])
+    ok = (num("sza_deg") < 80) & np.isfinite(X).all(1)
+    rtcols = {}
     for b, info in lut["bands"].items():
         V = np.array(info["values"], dtype=float)
         for j, key in enumerate(lut["outputs"]):
             col = np.full(len(df), np.nan)
             col[ok] = RegularGridInterpolator(grid, V[..., j])(X[ok])
-            df[f"{key}_{b}"] = col
+            rtcols[f"{key}_{b}"] = col
+    df = pd.concat([df, pd.DataFrame(rtcols, index=df.index)], axis=1)
     print(f"  RT: {len(lut['bands'])} bande x {len(lut['outputs'])} grandezze")
 else:
     print("  ! LUT 6S assente (scripts/01_build_rt_lut.py): niente parametri VNIR-SWIR")
