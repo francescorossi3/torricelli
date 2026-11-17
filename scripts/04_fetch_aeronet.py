@@ -83,7 +83,7 @@ for ym, part in new.groupby(new["time_utc"].dt.strftime("%Y-%m")):
         part = pd.concat([pd.read_parquet(path), part], ignore_index=True)
     part = part.drop_duplicates(["site", "time_utc"], keep="last").sort_values(["site", "time_utc"])
     part.to_parquet(path, index=False, compression="zstd")
-    part.round(4).to_csv(CSV_OUT / f"{ym}.csv", index=False)
+    part.round({c: 4 for c in ["aod550", "aod500", "angstrom", "tcwv"]}).to_csv(CSV_OUT / f"{ym}.csv", index=False)
     print(f"  {path.name}: {part['site'].nunique()} siti, {len(part)} righe")
 
 # elenco dei siti (unione con quelli gia' noti)
