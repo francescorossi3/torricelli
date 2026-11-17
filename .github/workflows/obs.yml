@@ -1,4 +1,4 @@
-name: Misure di validazione (AERONET)
+name: Misure di validazione e regression kriging (AERONET + Sentinel-2)
 
 on:
   schedule:
@@ -22,7 +22,7 @@ concurrency:
 jobs:
   obs:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 350
     env:
       USER_AGENT: "torricelli github.com/${{ github.repository }}"
     steps:
@@ -34,10 +34,16 @@ jobs:
       - run: pip install -r requirements.txt
       - name: AERONET (AOD 550 nm e vapore acqueo, tutti i siti)
         run: python -u scripts/04_fetch_aeronet.py ${{ inputs.start && format('--start {0}', inputs.start) || '' }} ${{ inputs.end && format('--end {0}', inputs.end) || '' }}
+      - name: Valori dei modelli (ECMWF, CAMS) nei siti AERONET
+        run: python -u scripts/05_model_at_aeronet.py ${{ inputs.start && format('--start {0}', inputs.start) || '' }} ${{ inputs.end && format('--end {0}', inputs.end) || '' }}
+      - name: Covariate Sentinel-2 e terreno nei siti
+        run: python -u scripts/06_covariates_s2.py ${{ inputs.start && format('--start {0}', inputs.start) || '' }} ${{ inputs.end && format('--end {0}', inputs.end) || '' }}
+      - name: Regression kriging (RF, HGB) validato sito per sito
+        run: python -u scripts/07_rk_validate.py
       - name: Salva i dati
         run: |
           git config user.name "torricelli-bot"
           git config user.email "actions@users.noreply.github.com"
           git add data
-          git commit -m "Misure AERONET $(date -u +%F)" || echo "niente da salvare"
+          git commit -m "Misure e validazione RK $(date -u +%F)" || echo "niente da salvare"
           git pull --rebase origin main && git push

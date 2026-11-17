@@ -6,6 +6,7 @@ build/site/
     data/rt/lut_s2.json (lut_hyper.json) tabelle 6S lette da Prognostica e Columella
     data/points.json                     punti elaborati
     data/latest.json                     ultime 24 h + 3 giorni di previsione per ogni punto (grandezze principali)
+    data/validation/rk_validation.json   regression kriging di vapore e AOD validato sulle misure AERONET
 """
 import json
 import shutil
@@ -41,6 +42,11 @@ if len(df):
                               **{v: [None if not np.isfinite(x) else round(float(x), 4) for x in g[v]] for v in KEEP if v in g}}
 with open(SITE / "data" / "latest.json", "w") as f:
     json.dump(out, f, separators=(",", ":"))
+# validazione del regression kriging sulle misure AERONET (letta da Prognostica, scheda Atmosphere RK)
+val = DATA / "validation" / "rk_validation.json"
+if val.exists():
+    (SITE / "data" / "validation").mkdir(parents=True, exist_ok=True)
+    shutil.copy(val, SITE / "data" / "validation" / val.name)
 pts = DATA / "points.csv"
 if pts.exists():
     pd.read_csv(pts, dtype={"station": str}).to_json(SITE / "data" / "points.json", orient="records")
