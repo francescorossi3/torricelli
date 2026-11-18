@@ -6,7 +6,8 @@ e misurare il guadagno SOLO contro misure vere. Le covariate esistono per ogni p
 
 Metodo (per ogni variabile):
   1. tabella: misura oraria + valori del modello (vapore, AOD, polveri, T2m, UR, pressione) + terreno
-     (quota, pendenza, TPI e rilievo a 500/2000 m) + posizione, ora e giorno dell'anno;
+     (quota, pendenza, TPI e rilievo a 500/2000 m) + ora e giorno dell'anno; latitudine e longitudine NON sono covariate:
+     gli alberi le taglierebbero a soglie fisse e la mappa avrebbe gradini dritti lungo meridiani e paralleli;
   2. trend: HistGradientBoostingRegressor (scikit-learn) che impara la CORREZIONE del modello (misura - modello);
   3. kriging ordinario dei residui del trend tra i siti della stessa ora (variogramma esponenziale);
   4. validazione per zona: i siti sono raggruppati in celle di 0.5 gradi e ogni gruppo di celle viene escluso a turno (GroupKFold):
@@ -18,7 +19,7 @@ Input:  data/obs/aeronet, data/obs/gnss (solo vapore), data/obs/model_at_aeronet
 Uscite: data/validation/rk_validation.json        (metriche complessive e per sito, importanza delle covariate)
         data/validation/rk_model_<var>.json        (gradient boosting finale addestrato su tutti i dati, alberi in JSON per il browser:
                                                     correzione = baseline + somma delle foglie; NaN -> ramo "missing")
-        data/csv/validation/rk_predictions_<var>.csv (ogni riga: sito, ora, misura, predizioni)
+        data/csv/validation/rk_predictions_<var>/YYYY-MM.csv (ogni riga: sito, ora, misura, predizioni fuori campione)
 
 Uso:  python scripts/07_rk_validate.py                 (tutto l'archivio disponibile)
 """
@@ -58,7 +59,7 @@ df["hour"] = df["time_utc"].dt.hour + df["time_utc"].dt.minute / 60
 # gruppi per la validazione: celle di 0.5 gradi, cosi' un sito di prova non ha vicini quasi identici (es. GNSS accanto ad AERONET) nell'addestramento
 df["cell"] = (np.floor(df["lat"] / 0.5)).astype(int).astype(str) + "_" + (np.floor(df["lon"] / 0.5)).astype(int).astype(str)
 FEAT = ["tcwv_model", "aod_model", "dust_ugm3", "t2m_c", "rh2m", "ps_hpa", "dem_elev", "slope_deg",
-        "tpi_500", "relief_500", "tpi_2000", "relief_2000", "lat", "lon", "hour", "doy_sin", "doy_cos"]
+        "tpi_500", "relief_500", "tpi_2000", "relief_2000", "hour", "doy_sin", "doy_cos"]
 print(f"{len(df)} righe (sito x ora), {df['site'].nunique()} siti, {len(FEAT)} covariate")
 
 
@@ -192,8 +193,13 @@ for var, info in VARS.items():
                                 "period": [str(d["time_utc"].min()), str(d["time_utc"].max())],
                                 "overall": overall, "sites": sites_out,
                                 "importance": [{"feature": f, "importance": float(v)} for f, v in imp]}
-    d.assign(**{f"pred_{k}": pred[k] for k in METHODS})[["site", "time_utc", "lat", "lon", var, *[f"pred_{k}" for k in METHODS]]] \
-        .round({var: 5, **{f"pred_{k}": 5 for k in METHODS}}).to_csv(CSV_OUT / f"rk_predictions_{var}.csv", index=False)
+    # predizioni fuori campione, un file per mese (un file unico supererebbe i 100 MB ammessi da GitHub)
+    out = d.assign(**{f"pred_{k}": pred[k] for k in METHODS})[["site", "time_utc", "lat", "lon", var, *[f"pred_{k}" for k in METHODS]]] \
+        .round({var: 5, **{f"pred_{k}": 5 for k in METHODS}})
+    (CSV_OUT / f"rk_predictions_{var}").mkdir(exist_ok=True)
+    (CSV_OUT / f"rk_predictions_{var}.csv").unlink(missing_ok=True)
+    for ym, part in out.groupby(out["time_utc"].dt.strftime("%Y-%m")):
+        part.to_csv(CSV_OUT / f"rk_predictions_{var}" / f"{ym}.csv", index=False)
 
 with open(OUT / "rk_validation.json", "w") as f:
     json.dump(result, f, separators=(",", ":"))

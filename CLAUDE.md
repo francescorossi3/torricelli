@@ -15,7 +15,7 @@ Legge stazioni e siti da Prognostica (`torricelli/common.py: points()`); pubblic
   - `04b_fetch_gnss.py` – vapore acqueo GNSS (Nevada Geodetic Laboratory, colonna WVAPOR): una stazione per cella di 1° in Italia + la più vicina a ogni sito AERONET → `data/obs/gnss/`.
   - `05_model_at_aeronet.py` – ECMWF IFS (historical forecast) e CAMS ai siti AERONET e GNSS dell'area (Europa e Mediterraneo) → `data/obs/model_at_aeronet/`.
   - `06_terrain.py` – terreno da Copernicus DEM (quota, pendenza, TPI e rilievo a 500/2000 m) per ogni sito → `data/obs/terrain_aeronet.csv`.
-  - `07_rk_validate.py` – HistGradientBoosting (scikit-learn) che corregge il modello con covariate disponibili per ogni pixel e ora (modello, terreno, posizione, ora) + kriging dei residui tra i siti della stessa ora; validazione per gruppi di celle di 0,5° (GroupKFold) → metriche ed errori per sito; modello finale in `rk_model_<var>.json` (alberi) per le mappe di Prognostica.
+  - `07_rk_validate.py` – HistGradientBoosting (scikit-learn) che corregge il modello con covariate disponibili per ogni pixel e ora (modello, terreno, ora e stagione; niente latitudine e longitudine, che darebbero gradini dritti nelle mappe) + kriging dei residui tra i siti della stessa ora; validazione per gruppi di celle di 0,5° (GroupKFold) → metriche ed errori per sito; modello finale in `rk_model_<var>.json` (alberi) per le mappe di Prognostica.
 - Workflow `daily.yml` 07:41 UTC.
 
 ## Regole comuni (famiglia Prognostica · Columella · Torricelli · Census)
