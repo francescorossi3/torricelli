@@ -6,6 +6,8 @@ Per ogni sito AERONET nell'area di studio e per ogni ora del periodo scarica da 
     temperatura e umidita' a 2 m, pressione al suolo;
   - CAMS globale 0.4 deg (air quality): AOD a 550 nm e polveri al suolo.
 Open-Meteo restituisce il valore della cella di griglia che contiene il sito (risoluzione del modello).
+Recupero del passato (--start): si scaricano solo i siti che mancano in qualche mese; se Open-Meteo rifiuta per troppe
+richieste si salva quanto scaricato e il resto si completa alla volta successiva.
 
 Input:  data/obs/aeronet/ e data/obs/gnss/ YYYY-MM.parquet (siti e ore con misure, da 04 e 04b)
 Uscite: data/obs/model_at_aeronet/YYYY-MM.parquet  (site, time_utc, tcwv_model, t2m_c, rh2m, ps_hpa, aod_model, dust_ugm3)
@@ -48,17 +50,25 @@ obs = load_obs(months)                                        # AERONET e GNSS
 obs = obs[(obs["time_utc"].dt.date >= start) & (obs["time_utc"].dt.date <= end)
           & obs["lat"].between(*BOX["lat"]) & obs["lon"].between(*BOX["lon"])]
 sites = obs.groupby("site")[["lat", "lon"]].first().reset_index()
-print(f"{len(sites)} siti di misura nell'area, {start} - {end}")
+# siti gia' presenti in tutti i mesi del periodo: si saltano (recupero del passato senza riscaricare tutto)
+have = [set(pd.read_parquet(OUT / f"{m}.parquet", columns=["site"])["site"]) if (OUT / f"{m}.parquet").exists() else set() for m in months]
+if args.start and len(months) > 1:
+    sites = sites[~sites["site"].isin(set.intersection(*have))]
+print(f"{len(sites)} siti di misura da scaricare nell'area, {start} - {end}")
 
 
-def fetch(url, variables, extra, chunk=20):
+def fetch(url, variables, extra, chunk=10):
     """Richiesta multi-sito a Open-Meteo per il periodo; restituisce una tabella (site, time_utc, variabili)."""
     frames = []
     for i in range(0, len(sites), chunk):
         sub = sites.iloc[i:i + chunk]
         q = dict(extra, latitude=",".join(f"{v:.4f}" for v in sub["lat"]), longitude=",".join(f"{v:.4f}" for v in sub["lon"]),
                  hourly=",".join(variables), start_date=str(start), end_date=str(end), timezone="GMT")
-        js = http_get(om_url(url), om_params(q), timeout=180).json()
+        try:
+            js = http_get(om_url(url), om_params(q), timeout=180).json()
+        except RuntimeError as e:                             # limite di Open-Meteo: si salva quanto scaricato, il resto alla prossima volta
+            print(f"   ! {e}: mi fermo a {i} siti su {len(sites)}")
+            break
         js = js if isinstance(js, list) else [js]
         for k, j in enumerate(js):
             h = j.get("hourly") or {}
@@ -66,13 +76,13 @@ def fetch(url, variables, extra, chunk=20):
                 continue
             frames.append(pd.DataFrame({variables[v]: h.get(v) for v in variables})
                           .assign(site=sub["site"].iloc[k], time_utc=pd.to_datetime(h["time"])))
-        time.sleep(2)
+        time.sleep(6)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=["site", "time_utc"])
 
 
 met = fetch("https://historical-forecast-api.open-meteo.com/v1/forecast", ECMWF, {"models": "ecmwf_ifs025"})
 aq = fetch("https://air-quality-api.open-meteo.com/v1/air-quality", CAMS, {"domains": "cams_global"})
-df = met.merge(aq, on=["site", "time_utc"], how="outer")
+df = met.merge(aq, on=["site", "time_utc"], how="inner")              # solo righe complete: i siti mancanti si riprendono dopo
 print(f"ECMWF: {met['tcwv_model'].notna().sum()} ore, CAMS: {aq['aod_model'].notna().sum()} ore")
 
 # %% archivio mensile (le righe nuove sostituiscono le vecchie)
