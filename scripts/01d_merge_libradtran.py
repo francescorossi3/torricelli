@@ -6,6 +6,7 @@ Uscite: data/rt/lut_libradtran_s2.json     13 bande Sentinel-2 (risposta spettra
         data/rt/lut_libradtran_hyper.json  400-2500 nm ogni 10 nm (gaussiana, larghezza a meta' altezza 10 nm)
         data/rt/lut_libradtran_tir.json    Landsat 8/9 TIRS B10, B11 e 8-13 um ogni 0.1 um: tau, l_up, l_down
 Calcoli (per banda, dopo la media sulla risposta spettrale): vedi 01c.
+Uso:    python scripts/01d_merge_libradtran.py
 """
 import json
 from pathlib import Path
@@ -38,7 +39,7 @@ def save(name, out):
 # %% VNIR-SWIR
 parts = sorted(P.glob("solar_part*.npz"))
 if parts:
-    res, sres, lam, e0 = {}, {}, None, None
+    res, sres = {}, {}
     for p in parts:
         z = np.load(p)
         lam, e0 = z["lam"], z["e0"]
@@ -48,7 +49,7 @@ if parts:
     from Py6S import PredefinedWavelengths as PW
     s2 = {}
     for b in ["01", "02", "03", "04", "05", "06", "07", "08", "8A", "09", "10", "11", "12"]:
-        _, a, bnd, f = getattr(PW, f"S2A_MSI_{b}")
+        _, a, _, f = getattr(PW, f"S2A_MSI_{b}")
         s2[f"S2_{b}"] = (np.interp(lam / 1000, np.arange(len(f)) * 0.0025 + a, f, left=0, right=0), None)
     hyper = {f"WL_{nm}": (gauss(lam, nm, 10.0), nm / 1000) for nm in range(400, 2501, 10)}
     for setname, bands in [("s2", s2), ("hyper", hyper)]:
@@ -76,7 +77,7 @@ if parts:
 # %% LWIR
 parts = sorted(P.glob("thermal_part*.npz"))
 if parts:
-    res, lam = {}, None
+    res = {}
     for p in parts:
         z = np.load(p)
         lam = z["lam"]

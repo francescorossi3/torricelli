@@ -27,7 +27,6 @@ import argparse
 import itertools
 import os
 import subprocess
-import sys
 import time
 from multiprocessing import Pool
 from pathlib import Path
@@ -117,7 +116,7 @@ def thermal_node(job):
 t0 = time.time()
 if args.kind == "solar":
     nodes = list(itertools.product(W, AOT, SZA, ALT))[args.part::args.nparts]
-    snodes = list(itertools.product(AOT, sorted(set(SZA)), ALT))[args.part::args.nparts]
+    snodes = list(itertools.product(AOT, SZA, ALT))[args.part::args.nparts]
     if args.limit:                                        # prova: pochi nodi e i loro nodi senza gas
         nodes = nodes[:args.limit]
         snodes = sorted({(a, z, h) for _, a, s_, h in nodes for z in (s_, 0)})

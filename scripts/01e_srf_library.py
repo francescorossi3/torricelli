@@ -23,10 +23,11 @@ from Py6S import PredefinedWavelengths as P
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from torricelli.common import DATA
 
+S2_BANDS = ["01", "02", "03", "04", "05", "06", "07", "08", "8A", "09", "10", "11", "12"]
 # sensore -> [(nome della banda, costante Py6S)]
 MEASURED = {
-    "Sentinel-2A MSI": [(f"B{b.lstrip('0')}", f"S2A_MSI_{b}") for b in ["01", "02", "03", "04", "05", "06", "07", "08", "8A", "09", "10", "11", "12"]],
-    "Sentinel-2B MSI": [(f"B{b.lstrip('0')}", f"S2B_MSI_{b}") for b in ["01", "02", "03", "04", "05", "06", "07", "08", "8A", "09", "10", "11", "12"]],
+    "Sentinel-2A MSI": [(f"B{b.lstrip('0')}", f"S2A_MSI_{b}") for b in S2_BANDS],
+    "Sentinel-2B MSI": [(f"B{b.lstrip('0')}", f"S2B_MSI_{b}") for b in S2_BANDS],
     "Landsat 8/9 OLI/TIRS": [(f"B{i}", f"LANDSAT_OLI_B{i}") for i in range(1, 10)],
     "Landsat 7 ETM+": [(f"B{i}", f"LANDSAT_ETM_B{i}") for i in [1, 2, 3, 4, 5, 7]],
     "Landsat 4/5 TM": [(f"B{i}", f"LANDSAT_TM_B{i}") for i in [1, 2, 3, 4, 5, 7]],

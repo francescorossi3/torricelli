@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-10 - Tabella di trasferimento radiativo (LUT) VNIR-SWIR con 6S.
+01 - Tabella di trasferimento radiativo (LUT) VNIR-SWIR con 6S.
 
 Si esegue UNA volta (o quando si cambiano bande/griglia), non ogni giorno.
 Per ogni banda/lunghezza d'onda e per ogni combinazione di
@@ -15,27 +15,26 @@ calcola:
     l_path         path radiance (radianza intrinseca atmosferica) [W m-2 sr-1 um-1]
     e_dir, e_dif   irradianza solare diretta e diffusa al suolo [W m-2 um-1]
     s_alb          albedo sferica
+Input:  eseguibile 6S + risposte spettrali di Py6S (Sentinel-2)
+Uscita: data/rt/lut_<set>.json (o lut_<set>_partK.json con --nparts > 1, uniti da 01b_merge_lut.py)
 Uso:
     python scripts/01_build_rt_lut.py --set s2       (Sentinel-2 MSI, 13 bande, con risposta spettrale)
-    python scripts/01_build_rt_lut.py --set hyper    (400-2500 nm ogni 20 nm: PRISMA / EnMAP)
+    python scripts/01_build_rt_lut.py --set hyper    (400-2500 nm ogni --step nm, default 10: PRISMA / EnMAP)
 Serve l'eseguibile 6S (conda-forge: sixs). Percorso in SIXS_PATH o nel PATH.
 """
 import argparse
 import itertools
 import json
 import os
-import sys
 import time
 from multiprocessing import Pool
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 import numpy as np
 from Py6S import (AeroProfile, Altitudes, AtmosCorr, AtmosProfile, Geometry, GroundReflectance,
                   PredefinedWavelengths, SixS, Wavelength)
 
+ROOT = Path(__file__).resolve().parents[1]
 ap = argparse.ArgumentParser()
 ap.add_argument("--set", default="s2", choices=["s2", "hyper"])
 ap.add_argument("--jobs", type=int, default=os.cpu_count())
@@ -70,8 +69,7 @@ def run(job):
     s.altitudes = Altitudes()
     s.altitudes.set_target_custom_altitude(alt)
     s.altitudes.set_sensor_satellite_level()
-    wl = BANDS[band]
-    s.wavelength = Wavelength(wl) if not isinstance(wl, float) else Wavelength(wl)
+    s.wavelength = Wavelength(BANDS[band])
     s.ground_reflectance = GroundReflectance.HomogeneousLambertian(0.2)
     s.atmos_corr = AtmosCorr.AtmosCorrLambertianFromReflectance(0.2)
     try:
@@ -81,7 +79,7 @@ def run(job):
         return (band, w, aot, sza, alt, [sc.downward, sc.upward, o.total_gaseous_transmittance,
                                          o.atmospheric_intrinsic_radiance, o.direct_solar_irradiance,
                                          o.diffuse_solar_irradiance, o.spherical_albedo.total])
-    except Exception as e:                                      # noqa: BLE001
+    except Exception:                                           # noqa: BLE001
         return (band, w, aot, sza, alt, [np.nan] * len(KEYS))
 
 
@@ -110,7 +108,6 @@ out = {"model": "6S (Py6S), nadir view, continental aerosol, ozone 0.30 cm-atm, 
        "bands": {b: {"wl_um": (float(BANDS[b]) if args.set == "hyper" else None),
                      "values": np.vectorize(lambda x: float(f"{x:.4g}"))(arr[b]).tolist()} for b in BANDS}}
 path = ROOT / "data" / "rt" / f"lut_{sfx}.json"
-path.parent.mkdir(parents=True, exist_ok=True)
 with open(path, "w") as f:
     json.dump(out, f, separators=(",", ":"))
 part.unlink(missing_ok=True)

@@ -13,6 +13,7 @@ e calcola:
     trasmittanze t_down, t_up, t_gas, path radiance, irradianza diretta e diffusa, albedo sferico;
   - TIR Landsat 8/9 banda 10 (Jiménez-Muñoz et al. 2014): trasmittanza, radianza in salita e in discesa.
 
+Input:  punti da Prognostica (torricelli/common.py: points()), data/rt/lut_s2.json
 Uscite: data/atmos/YYYY-MM.parquet (un valore per ora e punto, aggiornato all'ultima corsa)
         data/csv/atmos/YYYY-MM.csv  (stesso contenuto, leggibile in Excel)
 
@@ -56,12 +57,10 @@ AQ_VARS = {"aerosol_optical_depth": "aod550", "dust": "dust_ugm3"}
 RD = 287.05
 
 # %% 1) punti: stazioni di verifica + siti di calibrazione
-pts = points()
-pts = pts.drop_duplicates("station").reset_index(drop=True)
+pts = points().drop_duplicates("station").reset_index(drop=True)
 print(f"{len(pts)} punti ({pts['region'].value_counts().to_dict()})")
 
-
-ELEV = []
+ELEV = []                                        # quota del DEM di Open-Meteo per punto (riempita da om_multi)
 
 
 def om_multi(url, params, chunk=25):

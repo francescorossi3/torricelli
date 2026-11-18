@@ -56,9 +56,10 @@ def http_get(url, params=None, tries=4, timeout=120):
 OBS_NETWORKS = ["aeronet", "gnss"]
 
 
-def load_obs(months):
-    """Misure orarie di tutte le reti per i mesi richiesti (AAAA-MM), con la colonna 'network'."""
-    import pandas as pd
+def load_obs(months=None):
+    """Misure orarie di tutte le reti per i mesi richiesti (AAAA-MM; None = tutto l'archivio), con la colonna 'network'."""
+    if months is None:
+        months = sorted({f.stem for n in OBS_NETWORKS for f in (DATA / "obs" / n).glob("*.parquet")})
     frames = [pd.read_parquet(f).assign(network=n) for n in OBS_NETWORKS for m in months
               if (f := DATA / "obs" / n / f"{m}.parquet").exists()]
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=["site", "time_utc", "lat", "lon", "network"])

@@ -6,7 +6,9 @@ build/site/
     data/rt/lut_*.json (6S, libRadtran) e srf.json (risposte spettrali) lette da Prognostica e Columella
     data/points.json                     punti elaborati
     data/latest.json                     ultime 24 h + 3 giorni di previsione per ogni punto (grandezze principali)
-    data/validation/rk_validation.json   regression kriging di vapore e AOD validato sulle misure AERONET
+    data/validation/rk_*.json            regression kriging di vapore e AOD validato sulle misure (metriche e modelli)
+
+Input: web/, data/rt/lut_*.json e srf.json, data/atmos/*.parquet, data/validation/rk_*.json, data/points.csv
 """
 import json
 import shutil

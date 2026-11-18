@@ -34,7 +34,7 @@ from sklearn.inspection import permutation_importance
 from sklearn.model_selection import GroupKFold
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from torricelli.common import CSV_DIR, DATA, OBS_NETWORKS, load_obs
+from torricelli.common import CSV_DIR, DATA, load_obs
 
 VARS = {"tcwv": {"model": "tcwv_model", "unit": "kg m-2", "label": "Water vapour column"},
         "aod550": {"model": "aod_model", "unit": "", "label": "Aerosol optical depth 550 nm"}}
@@ -47,7 +47,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 CSV_OUT.mkdir(parents=True, exist_ok=True)
 
 # %% tabella: misure + modello + terreno
-obs = load_obs(sorted({f.stem for n in OBS_NETWORKS for f in (DATA / "obs" / n).glob("*.parquet")}))
+obs = load_obs()
 mod = pd.concat([pd.read_parquet(f) for f in sorted((DATA / "obs" / "model_at_aeronet").glob("*.parquet"))], ignore_index=True)
 ter = pd.read_csv(DATA / "obs" / "terrain_aeronet.csv")
 df = (obs[obs["time_utc"].dt.hour.between(*HOURS)].merge(mod, on=["site", "time_utc"], how="inner")

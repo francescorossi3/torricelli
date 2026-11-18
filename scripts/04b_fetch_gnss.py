@@ -90,7 +90,7 @@ sel = st[st["sta"].isin(pick)].reset_index(drop=True)
 if args.max_stations:
     sel = sel.head(args.max_stations)
 sel.drop(columns=["beg", "fin", "years"]).assign(site="GNSS_" + sel["sta"]).to_csv(DATA / "obs" / "gnss_sites.csv", index=False)
-print(f"{len(sel)} stazioni scelte ({len(it['cell'].unique())} celle in Italia)")
+print(f"{len(sel)} stazioni scelte ({it['cell'].nunique()} celle in Italia)")
 
 # %% download e lettura: un file ZIP per stazione e anno, un file SINEX TRO per giorno
 done = pd.read_csv(DONE) if DONE.exists() else pd.DataFrame(columns=["sta", "year"])

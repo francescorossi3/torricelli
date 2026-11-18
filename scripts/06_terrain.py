@@ -27,15 +27,14 @@ from rasterio.warp import transform as warp_transform
 from rasterio.windows import Window
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from torricelli.common import DATA, OBS_NETWORKS, load_obs
+from torricelli.common import DATA, load_obs
 
 RADII = [500, 2000]                                      # m
 RES = 20                                                 # m, griglia di lettura
 TERRAIN = DATA / "obs" / "terrain_aeronet.csv"
 
 # %% siti senza covariate del terreno
-months = sorted({f.stem for n in OBS_NETWORKS for f in (DATA / "obs" / n).glob("*.parquet")})
-sites = load_obs(months).groupby("site")[["lat", "lon"]].first().reset_index()
+sites = load_obs().groupby("site")[["lat", "lon"]].first().reset_index()
 with_model = {s for f in (DATA / "obs" / "model_at_aeronet").glob("*.parquet") for s in pd.read_parquet(f, columns=["site"])["site"]}
 sites = sites[sites["site"].isin(with_model)]                 # solo i siti dell'area con i valori del modello
 ter = pd.read_csv(TERRAIN) if TERRAIN.exists() else pd.DataFrame(columns=["site"])
