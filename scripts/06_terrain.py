@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """06 - Covariate del terreno nei siti di misura (AERONET, GNSS) dal Copernicus DEM GLO-30.
 
-Per ogni sito nuovo: quota del DEM, pendenza, TPI (quota del sito meno la media nel raggio) e rilievo
+Per ogni sito nuovo: quota (media entro 100 m), TPI (quota del sito meno la media nel raggio) e rilievo
 (deviazione standard della quota) a 500 e 2000 m. Le stesse grandezze sono calcolate nel browser
 (Prognostica, Atmosphere RK) per ogni pixel della mappa.
 
 Input:  data/obs/aeronet/ e data/obs/gnss/ YYYY-MM.parquet (elenco dei siti), data/obs/model_at_aeronet/ (area con il modello)
-Uscita: data/obs/terrain_aeronet.csv  (site, dem_elev, slope_deg, tpi_500, relief_500, tpi_2000, relief_2000)
+Uscita: data/obs/terrain_aeronet.csv  (site, dem_elev, tpi_500, relief_500, tpi_2000, relief_2000)
+
+La pendenza e la quota del singolo pixel non si usano: in pianura seguono il rumore del DEM e darebbero mappe a macchie.
 
 Uso:  python scripts/06_terrain.py
 """
@@ -46,6 +48,7 @@ n0 = int(round(2 * RADII[-1] / RES)) + 1
 yy, xx = np.mgrid[:n0, :n0]
 dist = np.hypot(yy - n0 // 2, xx - n0 // 2) * RES
 RING = {rad: dist <= rad for rad in RADII}
+CORE = dist <= 100                                       # quota del sito = media entro 100 m (toglie il rumore del DEM: edifici, argini, alberi)
 
 
 def terrain(s):
@@ -63,11 +66,10 @@ def terrain(s):
         print(f"   ! DEM {s.site}: {e}")
         # mare aperto (nessun tassello): si registra senza terreno; errori di rete: si riprova la volta dopo
         return {"site": s.site} if "not exist" in str(e) or "404" in str(e) else None
-    c = n0 // 2
-    gy, gx = np.gradient(z, RES)
-    out = {"site": s.site, "dem_elev": float(z[c, c]), "slope_deg": float(np.degrees(np.arctan(np.hypot(gx[c, c], gy[c, c]))))}
+    zc = z[CORE].mean()
+    out = {"site": s.site, "dem_elev": float(zc)}
     for rad in RADII:
-        out[f"tpi_{rad}"] = float(z[c, c] - z[RING[rad]].mean())
+        out[f"tpi_{rad}"] = float(zc - z[RING[rad]].mean())
         out[f"relief_{rad}"] = float(z[RING[rad]].std())
     return out
 

@@ -6,7 +6,7 @@ e misurare il guadagno SOLO contro misure vere. Le covariate esistono per ogni p
 
 Metodo (per ogni variabile):
   1. tabella: misura oraria + valori del modello (vapore, AOD, polveri, T2m, UR, pressione) + terreno
-     (quota, pendenza, TPI e rilievo a 500/2000 m) + ora e giorno dell'anno; latitudine e longitudine NON sono covariate:
+     (quota media entro 100 m, TPI e rilievo a 500/2000 m) + ora e giorno dell'anno; latitudine e longitudine NON sono covariate:
      gli alberi le taglierebbero a soglie fisse e la mappa avrebbe gradini dritti lungo meridiani e paralleli;
   2. trend: HistGradientBoostingRegressor (scikit-learn) che impara la CORREZIONE del modello (misura - modello);
   3. kriging ordinario dei residui del trend tra i siti della stessa ora (variogramma esponenziale);
@@ -58,7 +58,7 @@ df["doy_sin"], df["doy_cos"] = np.sin(2 * np.pi * doy / 365.25), np.cos(2 * np.p
 df["hour"] = df["time_utc"].dt.hour + df["time_utc"].dt.minute / 60
 # gruppi per la validazione: celle di 0.5 gradi, cosi' un sito di prova non ha vicini quasi identici (es. GNSS accanto ad AERONET) nell'addestramento
 df["cell"] = (np.floor(df["lat"] / 0.5)).astype(int).astype(str) + "_" + (np.floor(df["lon"] / 0.5)).astype(int).astype(str)
-FEAT = ["tcwv_model", "aod_model", "dust_ugm3", "t2m_c", "rh2m", "ps_hpa", "dem_elev", "slope_deg",
+FEAT = ["tcwv_model", "aod_model", "dust_ugm3", "t2m_c", "rh2m", "ps_hpa", "dem_elev",
         "tpi_500", "relief_500", "tpi_2000", "relief_2000", "hour", "doy_sin", "doy_cos"]
 print(f"{len(df)} righe (sito x ora), {df['site'].nunique()} siti, {len(FEAT)} covariate")
 
