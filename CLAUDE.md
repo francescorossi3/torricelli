@@ -6,13 +6,15 @@ Legge stazioni e siti da Prognostica (`torricelli/common.py: points()`); pubblic
 ## Mappa del codice
 - `torricelli/common.py` – percorsi, http_get, Open-Meteo, elenco punti.
 - `scripts/01_build_rt_lut.py` (+ `01b_merge_lut.py`) – LUT 6S; workflow `rt_lut.yml` (6 job paralleli).
+- `scripts/01c_build_libradtran_lut.py` + `01d_merge_libradtran.py` – LUT libRadtran (programma esterno GPL, compilato nel workflow, non nel repo): VNIR–SWIR con stessi assi/formato del 6S (`lut_libradtran_s2.json`, `_hyper.json`) e LWIR (`lut_libradtran_tir.json`: tau, L↑, L↓ per Landsat B10/B11 e 8–13 µm; assi vapore, quota, atmosfera AFGL); workflow `libradtran_lut.yml` (mode test/full).
 - `scripts/02_fetch_atmos.py` – database orario → `data/atmos/*.parquet`, `data/csv/atmos/*.csv`.
 - `scripts/03_build_site.py` + `web/` – sito, `data/latest.json`, `data/validation/rk_validation.json`.
 - Validazione con misure vere (workflow `obs.yml` 09:23 UTC, con input start/end per recuperare il passato):
   - `04_fetch_aeronet.py` – AERONET v3 livello 1.5, tutti i siti: AOD 550 nm (da 500 nm con Ångström) e vapore, medie orarie → `data/obs/aeronet/`.
-  - `05_model_at_aeronet.py` – ECMWF IFS (historical forecast) e CAMS ai siti AERONET dell'area (Europa e Mediterraneo) → `data/obs/model_at_aeronet/`.
+  - `04b_fetch_gnss.py` – vapore acqueo GNSS (Nevada Geodetic Laboratory, colonna WVAPOR): una stazione per cella di 1° in Italia + la più vicina a ogni sito AERONET → `data/obs/gnss/`.
+  - `05_model_at_aeronet.py` – ECMWF IFS (historical forecast) e CAMS ai siti AERONET e GNSS dell'area (Europa e Mediterraneo) → `data/obs/model_at_aeronet/`.
   - `06_covariates_s2.py` – Sentinel-2 L2A (Earth Search, COG) all'ora delle misure: AOT, vapore, riflettanze, indici, frazioni SCL a 60/500/2000 m; terreno da Copernicus DEM → `data/obs/covariates_s2/`, `data/obs/terrain_aeronet.csv`.
-  - `07_rk_validate.py` – RF e HistGradientBoosting (scikit-learn) che correggono il modello + kriging dei residui; validazione per gruppi di siti (GroupKFold) → metriche e errori per sito.
+  - `07_rk_validate.py` – RF e HistGradientBoosting (scikit-learn) che correggono il modello + kriging dei residui; validazione per gruppi di celle di 0,5° (GroupKFold) → metriche e errori per sito; gradient boosting finale esportato in `rk_model_<var>.json` (alberi) per le mappe di Prognostica.
 - Workflow `daily.yml` 07:41 UTC.
 
 ## Regole comuni (famiglia Prognostica · Columella · Torricelli · Census)
