@@ -1,0 +1,68 @@
+name: libRadtran - compilazione e prova
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache di libRadtran compilato
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/libRadtran
+          key: libradtran-2.0.6-${{ runner.os }}-v1
+      - name: Dipendenze di sistema
+        run: sudo apt-get update -q && sudo apt-get install -y -q gfortran libnetcdf-dev libgsl-dev flex bison python3
+      - name: Scarica e compila libRadtran 2.0.6 (programma esterno, licenza GPL; non incluso nel repository)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          cd ~
+          wget -q http://www.libradtran.org/download/libRadtran-2.0.6.tar.gz || wget -q https://www.libradtran.org/download/libRadtran-2.0.6.tar.gz
+          tar xzf libRadtran-2.0.6.tar.gz && mv libRadtran-2.0.6 libRadtran
+          cd libRadtran && ./configure > /tmp/configure.log 2>&1 || (tail -40 /tmp/configure.log; exit 1)
+          make -j4 > /tmp/make.log 2>&1 || (tail -60 /tmp/make.log; exit 1)
+          ls -la bin | head
+      - name: Prova solare (LOWTRAN, DISORT) e termica
+        run: |
+          cd ~/libRadtran/bin
+          cat > solar.inp <<'INP'
+          data_files_path ../data
+          atmosphere_file ../data/atmmod/afglms.dat
+          source solar ../data/solar_flux/kurudz_1.0nm.dat
+          mol_abs_param lowtran
+          wavelength 400 2500
+          sza 30
+          albedo 0.2
+          rte_solver disort
+          number_of_streams 8
+          aerosol_default
+          aerosol_set_tau_at_wvl 550 0.1
+          mol_modify H2O 20 MM
+          umu 1.0
+          zout toa
+          output_user lambda edir edn eup uu
+          quiet
+          INP
+          time ./uvspec < solar.inp > solar.out && head -5 solar.out && wc -l solar.out
+          cat > thermal.inp <<'INP'
+          data_files_path ../data
+          atmosphere_file ../data/atmmod/afglms.dat
+          source thermal
+          mol_abs_param lowtran
+          wavelength 8000 14000
+          sur_temperature 300
+          albedo 0
+          rte_solver disort
+          number_of_streams 8
+          mol_modify H2O 20 MM
+          umu 1.0
+          zout toa
+          output_user lambda uu
+          quiet
+          INP
+          time ./uvspec < thermal.inp > thermal.out && head -5 thermal.out && wc -l thermal.out
+          ls ../data | head -30
