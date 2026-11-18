@@ -1,5 +1,7 @@
 # Torricelli – istruzioni per Claude
 
+**Scopo della famiglia di repository:** infrastruttura per i ricercatori: correzione atmosferica di immagini satellitari, test di algoritmi (es. TES, separazione temperatura/emissività) sui siti di calibrazione, raccolta di dati e mappe (Columella per l'agricoltura).
+
 Back end atmosferico (Python) per la correzione atmosferica: LUT 6S (S2 e 400–2500 nm ogni 10 nm), database orario (vapore, AOD, profili, densità, temperatura aria/superficie, RT per banda, TIR L8/9 B10).
 Legge stazioni e siti da Prognostica (`torricelli/common.py: points()`); pubblica JSON su Pages per Prognostica e Columella.
 
