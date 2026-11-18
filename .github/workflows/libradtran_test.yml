@@ -20,11 +20,12 @@ jobs:
       - name: Scarica e compila libRadtran 2.0.6 (programma esterno, licenza GPL; non incluso nel repository)
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          sudo mkdir -p /opt/local/include && sudo ln -sf /usr/include/netcdf.h /opt/local/include/netcdf.h   # dipendenze precompilate su macOS
           cd ~
           wget -q http://www.libradtran.org/download/libRadtran-2.0.6.tar.gz || wget -q https://www.libradtran.org/download/libRadtran-2.0.6.tar.gz
           tar xzf libRadtran-2.0.6.tar.gz && mv libRadtran-2.0.6 libRadtran
-          cd libRadtran && ./configure > /tmp/configure.log 2>&1 || (tail -40 /tmp/configure.log; exit 1)
+          cd libRadtran
+          grep -rlI "/opt/local/include" . | xargs -r sed -i 's#/opt/local/include#/usr/include#g'   # dipendenze generate su macOS
+          ./configure > /tmp/configure.log 2>&1 || (tail -40 /tmp/configure.log; exit 1)
           make -j4 > /tmp/make.log 2>&1 || (tail -60 /tmp/make.log; exit 1)
           ls -la bin | head
       - name: Prova solare (LOWTRAN, DISORT) e termica
