@@ -43,9 +43,8 @@ if len(df):
 with open(SITE / "data" / "latest.json", "w") as f:
     json.dump(out, f, separators=(",", ":"))
 # validazione del regression kriging sulle misure AERONET (letta da Prognostica, scheda Atmosphere RK)
-val = DATA / "validation" / "rk_validation.json"
-if val.exists():
-    (SITE / "data" / "validation").mkdir(parents=True, exist_ok=True)
+(SITE / "data" / "validation").mkdir(parents=True, exist_ok=True)
+for val in (DATA / "validation").glob("rk_*.json"):            # metriche e modelli (rk_model_<var>.json) per le mappe nel browser
     shutil.copy(val, SITE / "data" / "validation" / val.name)
 pts = DATA / "points.csv"
 if pts.exists():

@@ -5,7 +5,7 @@ Fonte: NGL, prodotti troposferici ogni 5 minuti (ritardo zenitale totale, vapore
        pesata), uno ZIP per stazione e anno: https://geodesy.unr.edu/gps_timeseries/IGS20/trop/<STA>/<STA>.<ANNO>.trop.zip
        (dentro: un file SINEX TRO compresso per giorno). Elenco stazioni: https://geodesy.unr.edu/NGLStationPages/DataHoldings.txt
 Scelta delle stazioni (per limitare i download e avere punti ben distribuiti):
-  - Italia (lat 35.5-47.5, lon 6-19): una stazione per cella di 0.5 gradi (quella con la serie piu' lunga);
+  - Italia (lat 35.5-47.5, lon 6-19): una stazione per cella di 1 grado (quella con la serie piu' lunga);
   - Europa e Mediterraneo: la stazione piu' vicina a ogni sito AERONET, se entro 30 km.
 Calcoli: medie orarie del vapore acqueo (mm = kg m-2) e del ritardo zenitale totale (si legge l'anno intero di ogni file).
 
@@ -72,9 +72,9 @@ st = st[(st["fin"] >= pd.Timestamp(start)) & (st["beg"] <= pd.Timestamp(end))
 st["years"] = (st["fin"] - st["beg"]).dt.days / 365.25
 print(f"{len(st)} stazioni NGL attive nell'area")
 
-# %% scelta: una per cella di 0.5 gradi in Italia + la piu' vicina a ogni sito AERONET (entro 30 km)
+# %% scelta: una per cella di 1 grado in Italia + la piu' vicina a ogni sito AERONET (entro 30 km)
 it = st[st["lat"].between(*ITALY["lat"]) & st["lon"].between(*ITALY["lon"])].copy()
-it["cell"] = (np.floor(it["lat"] / 0.5)).astype(int).astype(str) + "_" + (np.floor(it["lon"] / 0.5)).astype(int).astype(str)
+it["cell"] = np.floor(it["lat"]).astype(int).astype(str) + "_" + np.floor(it["lon"]).astype(int).astype(str)
 pick = set(it.sort_values("years", ascending=False).drop_duplicates("cell")["sta"])
 ae_path = DATA / "obs" / "aeronet_sites.csv"
 if ae_path.exists():

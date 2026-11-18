@@ -1,4 +1,4 @@
-name: Misure di validazione e regression kriging (AERONET + Sentinel-2)
+name: Misure di validazione e regression kriging (AERONET + GNSS + Sentinel-2)
 
 on:
   schedule:
@@ -34,6 +34,8 @@ jobs:
       - run: pip install -r requirements.txt
       - name: AERONET (AOD 550 nm e vapore acqueo, tutti i siti)
         run: python -u scripts/04_fetch_aeronet.py ${{ inputs.start && format('--start {0}', inputs.start) || '' }} ${{ inputs.end && format('--end {0}', inputs.end) || '' }}
+      - name: GNSS (vapore acqueo, Nevada Geodetic Laboratory)
+        run: python -u scripts/04b_fetch_gnss.py ${{ inputs.start && format('--start {0}', inputs.start) || '' }} ${{ inputs.end && format('--end {0}', inputs.end) || '' }}
       - name: Valori dei modelli (ECMWF, CAMS) nei siti AERONET
         run: python -u scripts/05_model_at_aeronet.py ${{ inputs.start && format('--start {0}', inputs.start) || '' }} ${{ inputs.end && format('--end {0}', inputs.end) || '' }}
       - name: Covariate Sentinel-2 e terreno nei siti

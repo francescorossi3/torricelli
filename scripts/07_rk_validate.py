@@ -10,13 +10,15 @@ Metodo (per ogni variabile):
   2. trend con machine learning (scikit-learn) che impara la CORREZIONE del modello (misura - modello):
        RF  = RandomForestRegressor          HGB = HistGradientBoostingRegressor (accetta valori mancanti)
   3. kriging ordinario dei residui del trend tra i siti dello stesso giorno (variogramma esponenziale);
-  4. validazione per sito: i siti sono divisi in gruppi e ogni gruppo viene escluso a turno (GroupKFold):
+  4. validazione per zona: i siti sono raggruppati in celle di 0.5 gradi e ogni gruppo di celle viene escluso a turno (GroupKFold):
      il sito escluso non entra ne' nel trend ne' nel variogramma ne' nel kriging; i residui dei siti di
      addestramento usati nel kriging sono anch'essi fuori campione (GroupKFold interno).
   Metodi confrontati: model (dato grezzo), rf, rf_rk, hgb, hgb_rk.
 
-Input:  data/obs/aeronet, data/obs/model_at_aeronet, data/obs/covariates_s2 (YYYY-MM.parquet), data/obs/terrain_aeronet.csv
+Input:  data/obs/aeronet, data/obs/gnss (solo vapore), data/obs/model_at_aeronet, data/obs/covariates_s2 (YYYY-MM.parquet), data/obs/terrain_aeronet.csv
 Uscite: data/validation/rk_validation.json        (metriche complessive e per sito, importanza delle covariate)
+        data/validation/rk_model_<var>.json        (gradient boosting finale addestrato su tutti i dati, alberi in JSON per il browser:
+                                                    correzione = baseline + somma delle foglie; NaN -> ramo "missing")
         data/csv/validation/rk_predictions_<var>.csv (ogni riga: sito, ora, misura, modello, predizioni)
 
 Uso:  python scripts/07_rk_validate.py                 (tutto l'archivio disponibile)
@@ -32,7 +34,7 @@ from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegresso
 from sklearn.model_selection import GroupKFold
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from torricelli.common import CSV_DIR, DATA
+from torricelli.common import CSV_DIR, DATA, OBS_NETWORKS, load_obs
 
 VARS = {"tcwv": {"model": "tcwv_model", "unit": "kg m-2", "label": "Water vapour column"},
         "aod550": {"model": "aod_model", "unit": "", "label": "Aerosol optical depth 550 nm"}}
@@ -50,7 +52,7 @@ def load(folder):
 
 
 # %% tabella: misure + modello + covariate (solo le ore con un'immagine Sentinel-2)
-obs = load("aeronet")
+obs = load_obs(sorted({f.stem for n in OBS_NETWORKS for f in (DATA / "obs" / n).glob("*.parquet")}))
 mod = load("model_at_aeronet")
 s2 = load("covariates_s2")
 ter = pd.read_csv(DATA / "obs" / "terrain_aeronet.csv") if (DATA / "obs" / "terrain_aeronet.csv").exists() else pd.DataFrame({"site": []})
@@ -63,7 +65,9 @@ df = (s2.merge(obs, on=["site", "time_utc"], how="inner").merge(mod, on=["site",
 doy = df["time_utc"].dt.day_of_year
 df["doy_sin"], df["doy_cos"] = np.sin(2 * np.pi * doy / 365.25), np.cos(2 * np.pi * doy / 365.25)
 df["day"] = df["time_utc"].dt.floor("D")
-DROP = {"site", "item", "s2_time", "time_utc", "day", "tcwv", "aod550", "aod500", "angstrom", "n"}
+DROP = {"site", "item", "s2_time", "time_utc", "day", "tcwv", "aod550", "aod500", "angstrom", "n", "ztd_mm", "network", "cell"}
+# gruppi per la validazione: celle di 0.5 gradi, cosi' un sito di prova non ha vicini quasi identici (es. GNSS accanto ad AERONET) nell'addestramento
+df["cell"] = (np.floor(df["lat"] / 0.5)).astype(int).astype(str) + "_" + (np.floor(df["lon"] / 0.5)).astype(int).astype(str)
 FEAT = [c for c in df.columns if c not in DROP and pd.api.types.is_numeric_dtype(df[c])]
 print(f"{len(df)} righe (sito x passaggio Sentinel-2), {df['site'].nunique()} siti, {len(FEAT)} covariate")
 
@@ -168,8 +172,8 @@ for var, info in VARS.items():
     corr = y - m0                                                     # il trend impara la correzione del modello
     pred = {k: np.full(len(d), np.nan) for k in METHODS}
     pred["model"] = m0
-    outer = GroupKFold(n_splits=min(10, nsite))
-    for tr, te in outer.split(X, y, d["site"]):
+    outer = GroupKFold(n_splits=min(10, d["cell"].nunique()))
+    for tr, te in outer.split(X, y, d["cell"]):
         for name, est in learners().items():
             Xtr = X[tr] if name == "hgb" else np.nan_to_num(X[tr], nan=-999)
             Xte = X[te] if name == "hgb" else np.nan_to_num(X[te], nan=-999)
@@ -177,7 +181,7 @@ for var, info in VARS.items():
             pred[name][te] = m0[te] + est.predict(Xte)
             # residui fuori campione dei siti di addestramento (GroupKFold interno) per variogramma e kriging
             inner = np.full(len(tr), np.nan)
-            for itr, ite in GroupKFold(n_splits=min(5, d.iloc[tr]["site"].nunique())).split(Xtr, corr[tr], d.iloc[tr]["site"]):
+            for itr, ite in GroupKFold(n_splits=min(5, d.iloc[tr]["cell"].nunique())).split(Xtr, corr[tr], d.iloc[tr]["cell"]):
                 e2 = learners()[name].fit(Xtr[itr], corr[tr][itr])
                 inner[ite] = m0[tr][ite] + e2.predict(Xtr[ite])
             t_tr = d.iloc[tr][["day", "lat", "lon"]].assign(res=y[tr] - inner)
@@ -189,9 +193,18 @@ for var, info in VARS.items():
     sites_out = []
     for site, g in d.assign(**{f"p_{k}": pred[k] for k in METHODS}).groupby("site"):
         yy = g[var].to_numpy(float)
-        sites_out.append({"site": site, "lat": float(g["lat"].iloc[0]), "lon": float(g["lon"].iloc[0]),
+        sites_out.append({"site": site, "network": g["network"].iloc[0], "lat": float(g["lat"].iloc[0]), "lon": float(g["lon"].iloc[0]),
                           "elev": None if pd.isna(g["elev"].iloc[0]) else float(g["elev"].iloc[0]),
                           **{k: metrics(yy, g[f"p_{k}"].to_numpy(float)) for k in METHODS}})
+    # modello finale per le mappe: gradient boosting su tutti i dati, esportato albero per albero
+    hgb = learners()["hgb"].fit(X, corr)
+    trees = [{"f": n["feature_idx"].tolist(), "t": [float(v) for v in n["num_threshold"]], "m": n["missing_go_to_left"].astype(int).tolist(),
+              "l": n["left"].tolist(), "r": n["right"].tolist(), "leaf": n["is_leaf"].astype(int).tolist(), "v": [float(v) for v in n["value"]]}
+             for n in (it[0].nodes for it in hgb._predictors)]
+    with open(OUT / f"rk_model_{var}.json", "w") as f:
+        json.dump({"variable": var, "model_column": info["model"], "unit": info["unit"], "features": FEAT,
+                   "baseline": float(np.ravel(hgb._baseline_prediction)[0]), "trees": trees,
+                   "built": result["built"], "n_rows": int(len(d)), "rmse_validation": overall["hgb"]["rmse"]}, f, separators=(",", ":"))
     # importanza delle covariate (RF su tutti i dati)
     rf = learners()["rf"].fit(np.nan_to_num(X, nan=-999), corr)
     imp = sorted(zip(FEAT, rf.feature_importances_), key=lambda x: -x[1])[:20]

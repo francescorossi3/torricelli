@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""06 - Covariate ad alta risoluzione nei siti AERONET: Sentinel-2 L2A (contemporaneo) e terreno (Copernicus DEM).
+"""06 - Covariate ad alta risoluzione nei siti di misura (AERONET, GNSS): Sentinel-2 L2A (contemporaneo) e terreno (Copernicus DEM).
 
 Per ogni sito AERONET nell'area di studio e per ogni immagine Sentinel-2 L2A acquisita quando il sito ha una misura
 (stessa ora UTC) legge una finestra intorno al sito e calcola le medie entro tre raggi (60, 500, 2000 m),
@@ -14,7 +14,7 @@ Terreno (statico, calcolato una volta per sito, Copernicus DEM GLO-30):
 
 Fonti: Earth Search STAC (Element 84) collezione sentinel-2-c1-l2a, file COG pubblici su AWS;
        Copernicus DEM GLO-30 (COG pubblici su AWS, (c) DLR/Airbus, licenza Copernicus).
-Input:  data/obs/aeronet/YYYY-MM.parquet
+Input:  data/obs/aeronet/ e data/obs/gnss/ YYYY-MM.parquet
 Uscite: data/obs/covariates_s2/YYYY-MM.parquet  (una riga per sito e immagine; le immagini gia' lette si saltano)
         data/obs/terrain_aeronet.csv           (covariate del terreno per sito)
 
@@ -42,7 +42,7 @@ from rasterio.warp import transform as warp_transform
 from rasterio.windows import Window
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from torricelli.common import DATA, SESSION
+from torricelli.common import DATA, SESSION, load_obs
 
 STAC = "https://earth-search.aws.element84.com/v1/search"
 COLLECTION = "sentinel-2-c1-l2a"
@@ -66,10 +66,11 @@ start = date.fromisoformat(args.start) if args.start else end - timedelta(days=7
 
 # %% misure AERONET nel periodo e nell'area
 months = pd.period_range(start, end, freq="M").strftime("%Y-%m")
-obs = pd.concat([pd.read_parquet(f) for m in months if (f := DATA / "obs" / "aeronet" / f"{m}.parquet").exists()], ignore_index=True)
+obs = load_obs(months)                                        # AERONET e GNSS
 obs = obs[(obs["time_utc"].dt.date >= start) & (obs["time_utc"].dt.date <= end)
           & obs["lat"].between(*BOX["lat"]) & obs["lon"].between(*BOX["lon"])]
 sites = obs.groupby("site")[["lat", "lon", "elev"]].first().reset_index()
+sites = sites[sites["site"].isin(obs.loc[obs["time_utc"].dt.hour.between(8, 13), "site"])]   # solo siti con misure attorno al passaggio di S2
 obs_hours = set(zip(obs["site"], obs["time_utc"]))
 done = set()
 for m in months:
@@ -94,6 +95,8 @@ for s in sites.itertuples():
     else:
         continue
     for it in r.json().get("features", []):
+        if s.site.startswith("GNSS_") and it["properties"]["eo:cloud_cover"] >= 50:   # GNSS misura anche con nuvole: solo scene abbastanza serene
+            continue
         t = pd.Timestamp(it["properties"]["datetime"]).tz_convert(None)
         if (s.site, t.floor("h")) in obs_hours and (s.site, it["id"]) not in done:
             tasks.append((s, it, t))

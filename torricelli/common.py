@@ -52,6 +52,18 @@ def http_get(url, params=None, tries=4, timeout=120):
     raise RuntimeError(f"Richiesta fallita dopo {tries} tentativi: {url}")
 
 
+# reti di misura usate per validare i dati atmosferici dei modelli (cartelle in data/obs/)
+OBS_NETWORKS = ["aeronet", "gnss"]
+
+
+def load_obs(months):
+    """Misure orarie di tutte le reti per i mesi richiesti (AAAA-MM), con la colonna 'network'."""
+    import pandas as pd
+    frames = [pd.read_parquet(f).assign(network=n) for n in OBS_NETWORKS for m in months
+              if (f := DATA / "obs" / n / f"{m}.parquet").exists()]
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=["site", "time_utc", "lat", "lon", "network"])
+
+
 def points():
     """Stazioni italiane di verifica + siti di calibrazione (RadCalNet, HYPERNETS, ...) da Prognostica.
     Colonne: station, name, lat, lon, elev, region. Copia locale in data/points.csv come riserva."""

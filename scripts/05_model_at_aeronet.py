@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""05 - Valori dei modelli atmosferici nei siti AERONET (per il confronto con le misure).
+"""05 - Valori dei modelli atmosferici nei siti di misura AERONET e GNSS (per il confronto con le misure).
 
 Per ogni sito AERONET nell'area di studio e per ogni ora del periodo scarica da Open-Meteo:
   - ECMWF IFS 0.25 deg (archivio delle previsioni, "historical forecast"): vapore acqueo in colonna (TCWV),
@@ -7,7 +7,7 @@ Per ogni sito AERONET nell'area di studio e per ogni ora del periodo scarica da 
   - CAMS globale 0.4 deg (air quality): AOD a 550 nm e polveri al suolo.
 Open-Meteo restituisce il valore della cella di griglia che contiene il sito (risoluzione del modello).
 
-Input:  data/obs/aeronet/YYYY-MM.parquet (siti e ore con misure, da 04_fetch_aeronet.py)
+Input:  data/obs/aeronet/ e data/obs/gnss/ YYYY-MM.parquet (siti e ore con misure, da 04 e 04b)
 Uscite: data/obs/model_at_aeronet/YYYY-MM.parquet  (site, time_utc, tcwv_model, t2m_c, rh2m, ps_hpa, aod_model, dust_ugm3)
         data/csv/obs/model_at_aeronet/YYYY-MM.csv
 
@@ -23,7 +23,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from torricelli.common import CSV_DIR, DATA, http_get, om_params, om_url
+from torricelli.common import CSV_DIR, DATA, http_get, load_obs, om_params, om_url
 
 # area di studio: Europa e Mediterraneo (siti RadCalNet / HYPERNETS fuori area si aggiungono qui)
 BOX = {"lat": (30.0, 62.0), "lon": (-15.0, 40.0)}
@@ -44,11 +44,11 @@ start = date.fromisoformat(args.start) if args.start else end - timedelta(days=7
 
 # %% siti con misure nel periodo
 months = pd.period_range(start, end, freq="M").strftime("%Y-%m")
-obs = pd.concat([pd.read_parquet(f) for m in months if (f := DATA / "obs" / "aeronet" / f"{m}.parquet").exists()], ignore_index=True)
+obs = load_obs(months)                                        # AERONET e GNSS
 obs = obs[(obs["time_utc"].dt.date >= start) & (obs["time_utc"].dt.date <= end)
           & obs["lat"].between(*BOX["lat"]) & obs["lon"].between(*BOX["lon"])]
 sites = obs.groupby("site")[["lat", "lon"]].first().reset_index()
-print(f"{len(sites)} siti AERONET nell'area, {start} - {end}")
+print(f"{len(sites)} siti di misura nell'area, {start} - {end}")
 
 
 def fetch(url, variables, extra, chunk=20):
