@@ -1,0 +1,22 @@
+name: GNSS - prova di lettura (senza salvare)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Prima riga di un file NGL (formato)
+        run: |
+          curl -sSL -o t.zip https://geodesy.unr.edu/gps_timeseries/IGS20/trop/M0SE/M0SE.2025.trop.zip && unzip -l t.zip | head -5
+          f=$(unzip -Z1 t.zip | sed -n 100p); unzip -p t.zip "$f" | (zcat 2>/dev/null || cat) | grep -n -A4 "TROP/SOLUTION" | head -12
+      - name: 04b su 3 stazioni
+        run: python -u scripts/04b_fetch_gnss.py --start 2025-06-01 --end 2025-06-30 --max-stations 3 && python -c "import pandas as pd; d=pd.read_parquet('data/obs/gnss/2025-06.parquet'); print(d.head(10)); print(d.describe())"
