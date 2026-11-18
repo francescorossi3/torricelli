@@ -5,7 +5,7 @@ Per ogni sito nuovo: quota del DEM, pendenza, TPI (quota del sito meno la media 
 (deviazione standard della quota) a 500 e 2000 m. Le stesse grandezze sono calcolate nel browser
 (Prognostica, Atmosphere RK) per ogni pixel della mappa.
 
-Input:  data/obs/aeronet/ e data/obs/gnss/ YYYY-MM.parquet (elenco dei siti)
+Input:  data/obs/aeronet/ e data/obs/gnss/ YYYY-MM.parquet (elenco dei siti), data/obs/model_at_aeronet/ (area con il modello)
 Uscita: data/obs/terrain_aeronet.csv  (site, dem_elev, slope_deg, tpi_500, relief_500, tpi_2000, relief_2000)
 
 Uso:  python scripts/06_terrain.py
@@ -36,6 +36,8 @@ TERRAIN = DATA / "obs" / "terrain_aeronet.csv"
 # %% siti senza covariate del terreno
 months = sorted({f.stem for n in OBS_NETWORKS for f in (DATA / "obs" / n).glob("*.parquet")})
 sites = load_obs(months).groupby("site")[["lat", "lon"]].first().reset_index()
+with_model = {s for f in (DATA / "obs" / "model_at_aeronet").glob("*.parquet") for s in pd.read_parquet(f, columns=["site"])["site"]}
+sites = sites[sites["site"].isin(with_model)]                 # solo i siti dell'area con i valori del modello
 ter = pd.read_csv(TERRAIN) if TERRAIN.exists() else pd.DataFrame(columns=["site"])
 todo = sites[~sites["site"].isin(ter["site"])]
 print(f"{len(sites)} siti, {len(todo)} senza terreno")
@@ -58,9 +60,10 @@ def terrain(s):
             hy = int(np.ceil(RADII[-1] / (abs(ds.transform.e) * 111320)))
             z = ds.read(1, window=Window(c - hx, r - hy, 2 * hx + 1, 2 * hy + 1), boundless=True, fill_value=0,
                         out_shape=(n0, n0), resampling=Resampling.bilinear).astype("float64")
-    except Exception as e:                                    # noqa: BLE001  (mare aperto: nessun tassello)
+    except Exception as e:                                    # noqa: BLE001
         print(f"   ! DEM {s.site}: {e}")
-        return {"site": s.site}
+        # mare aperto (nessun tassello): si registra senza terreno; errori di rete: si riprova la volta dopo
+        return {"site": s.site} if "not exist" in str(e) or "404" in str(e) else None
     c = n0 // 2
     gy, gx = np.gradient(z, RES)
     out = {"site": s.site, "dem_elev": float(z[c, c]), "slope_deg": float(np.degrees(np.arctan(np.hypot(gx[c, c], gy[c, c]))))}
@@ -73,7 +76,7 @@ def terrain(s):
 # %% calcolo e salvataggio
 if len(todo):
     with ThreadPoolExecutor(12) as ex:
-        new = list(ex.map(terrain, todo.itertuples()))
+        new = [t for t in ex.map(terrain, todo.itertuples()) if t]
     ter = pd.concat([ter, pd.DataFrame(new)], ignore_index=True).drop_duplicates("site", keep="last")
     ter.to_csv(TERRAIN, index=False)
 print(f"terreno: {len(ter)} siti")
