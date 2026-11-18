@@ -1,4 +1,4 @@
-name: Misure di validazione e regression kriging (AERONET + GNSS + Sentinel-2)
+name: Misure di validazione e regression kriging (AERONET + GNSS)
 
 on:
   schedule:
@@ -38,9 +38,9 @@ jobs:
         run: python -u scripts/04b_fetch_gnss.py ${{ inputs.start && format('--start {0}', inputs.start) || '' }} ${{ inputs.end && format('--end {0}', inputs.end) || '' }}
       - name: Valori dei modelli (ECMWF, CAMS) nei siti AERONET
         run: python -u scripts/05_model_at_aeronet.py ${{ inputs.start && format('--start {0}', inputs.start) || '' }} ${{ inputs.end && format('--end {0}', inputs.end) || '' }}
-      - name: Covariate Sentinel-2 e terreno nei siti
-        run: python -u scripts/06_covariates_s2.py ${{ inputs.start && format('--start {0}', inputs.start) || '' }} ${{ inputs.end && format('--end {0}', inputs.end) || '' }}
-      - name: Regression kriging (RF, HGB) validato sito per sito
+      - name: Terreno nei siti (Copernicus DEM)
+        run: python -u scripts/06_terrain.py
+      - name: Regression kriging (gradient boosting + kriging) validato sito per sito
         run: python -u scripts/07_rk_validate.py
       - name: Salva i dati
         run: |
