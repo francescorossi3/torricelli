@@ -20,6 +20,7 @@ jobs:
       - name: Scarica e compila libRadtran 2.0.6 (programma esterno, licenza GPL; non incluso nel repository)
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
+          sudo mkdir -p /opt/local/include && sudo ln -sf /usr/include/netcdf.h /opt/local/include/netcdf.h   # dipendenze precompilate su macOS
           cd ~
           wget -q http://www.libradtran.org/download/libRadtran-2.0.6.tar.gz || wget -q https://www.libradtran.org/download/libRadtran-2.0.6.tar.gz
           tar xzf libRadtran-2.0.6.tar.gz && mv libRadtran-2.0.6 libRadtran
