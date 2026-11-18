@@ -3,7 +3,7 @@
 
 build/site/
     index.html, app.js, style.css       pagina (inglese, con traduzione italiana)
-    data/rt/lut_s2.json (lut_hyper.json) tabelle 6S lette da Prognostica e Columella
+    data/rt/lut_*.json (6S, libRadtran) e srf.json (risposte spettrali) lette da Prognostica e Columella
     data/points.json                     punti elaborati
     data/latest.json                     ultime 24 h + 3 giorni di previsione per ogni punto (grandezze principali)
     data/validation/rk_validation.json   regression kriging di vapore e AOD validato sulle misure AERONET
@@ -23,7 +23,7 @@ from torricelli.common import DATA, SITE
 shutil.rmtree(SITE, ignore_errors=True)
 shutil.copytree(ROOT / "web", SITE)
 (SITE / "data" / "rt").mkdir(parents=True, exist_ok=True)
-for f in (DATA / "rt").glob("lut_*.json"):
+for f in [*(DATA / "rt").glob("lut_*.json"), DATA / "rt" / "srf.json"]:
     shutil.copy(f, SITE / "data" / "rt" / f.name)
 
 # %% ultime ore e previsione (solo grandezze principali, per tenere il file leggero)

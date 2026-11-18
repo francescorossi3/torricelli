@@ -7,6 +7,7 @@ Legge stazioni e siti da Prognostica (`torricelli/common.py: points()`); pubblic
 - `torricelli/common.py` – percorsi, http_get, Open-Meteo, elenco punti.
 - `scripts/01_build_rt_lut.py` (+ `01b_merge_lut.py`) – LUT 6S; workflow `rt_lut.yml` (6 job paralleli).
 - `scripts/01c_build_libradtran_lut.py` + `01d_merge_libradtran.py` – LUT libRadtran (programma esterno GPL, compilato nel workflow, non nel repo): VNIR–SWIR con stessi assi/formato del 6S (`lut_libradtran_s2.json`, `_hyper.json`) e LWIR (`lut_libradtran_tir.json`: tau, L↑, L↓ per Landsat B10/B11 e 8–13 µm; assi vapore, quota, atmosfera AFGL); workflow `libradtran_lut.yml` (mode test/full).
+- `scripts/01e_srf_library.py` – risposte spettrali dei sensori (`data/rt/srf.json`: curve misurate da Py6S per VNIR–SWIR, gaussiane per LWIR) per convertire le LUT alle bande dei satelliti in Prognostica.
 - `scripts/02_fetch_atmos.py` – database orario → `data/atmos/*.parquet`, `data/csv/atmos/*.csv`.
 - `scripts/03_build_site.py` + `web/` – sito, `data/latest.json`, `data/validation/rk_validation.json`.
 - Validazione con misure vere (workflow `obs.yml` 09:23 UTC, con input start/end per recuperare il passato):
