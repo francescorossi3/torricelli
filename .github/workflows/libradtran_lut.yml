@@ -31,7 +31,7 @@ jobs:
         if: steps.skip.outputs.skip != 'true'
         with:
           python-version: "3.12"
-      - run: pip install numpy Py6S
+      - run: pip install numpy scipy matplotlib python-dateutil Py6S
         if: steps.skip.outputs.skip != 'true'
       - name: Cache di libRadtran compilato
         if: steps.skip.outputs.skip != 'true'
@@ -92,7 +92,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install numpy Py6S
+      - run: pip install numpy scipy matplotlib python-dateutil Py6S
       - uses: actions/download-artifact@v4
         with:
           path: data/rt/parts_lrt
