@@ -1,0 +1,108 @@
+name: Tabelle RT libRadtran (LUT VNIR-SWIR e LWIR)
+
+# libRadtran (licenza GPL) e' un programma esterno: si scarica e si compila qui, non e' incluso nel repository.
+#   mode = test -> pochi nodi, per controllare tempi e valori (non salva)
+#   mode = full -> tutta la LUT: VNIR-SWIR divisa su 12 macchine, LWIR su 2; poi unione e salvataggio
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "test oppure full"
+        default: test
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  lut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Salta le parti in piu' nella prova
+        id: skip
+        run: echo "skip=${{ inputs.mode == 'test' && matrix.part > 0 }}" >> $GITHUB_OUTPUT
+      - uses: actions/setup-python@v5
+        if: steps.skip.outputs.skip != 'true'
+        with:
+          python-version: "3.12"
+      - run: pip install numpy Py6S
+        if: steps.skip.outputs.skip != 'true'
+      - name: Cache di libRadtran compilato
+        if: steps.skip.outputs.skip != 'true'
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/libRadtran
+          key: libradtran-2.0.6-${{ runner.os }}-v1
+      - name: Dipendenze di sistema
+        if: steps.skip.outputs.skip != 'true'
+        run: sudo apt-get update -q && sudo apt-get install -y -q gfortran libnetcdf-dev libgsl-dev flex bison
+      - name: Compila libRadtran 2.0.6 (se non in cache)
+        if: steps.skip.outputs.skip != 'true' && steps.cache.outputs.cache-hit != 'true'
+        run: |
+          cd ~ && wget -q http://www.libradtran.org/download/libRadtran-2.0.6.tar.gz
+          tar xzf libRadtran-2.0.6.tar.gz && mv libRadtran-2.0.6 libRadtran && cd libRadtran
+          grep -rlI "/opt/local/include" . | xargs -r sed -i 's#/opt/local/include#/usr/include#g'
+          ./configure > /tmp/configure.log 2>&1 && make -j4 > /tmp/make.log 2>&1 || (tail -60 /tmp/make.log; exit 1)
+      - name: LUT (parte ${{ matrix.part }})
+        if: steps.skip.outputs.skip != 'true'
+        run: |
+          if [ "${{ inputs.mode }}" = "test" ]; then
+            python -u scripts/01c_build_libradtran_lut.py --kind solar --limit 2 --jobs 2
+            python -u scripts/01c_build_libradtran_lut.py --kind thermal --limit 2 --jobs 2
+          elif [ ${{ matrix.part }} -lt 12 ]; then
+            python -u scripts/01c_build_libradtran_lut.py --kind solar --part ${{ matrix.part }} --nparts 12 --jobs 4
+          else
+            python -u scripts/01c_build_libradtran_lut.py --kind thermal --part $(( ${{ matrix.part }} - 12 )) --nparts 2 --jobs 4
+          fi
+      - name: Prova - unione e confronto con 6S
+        if: inputs.mode == 'test' && matrix.part == 0
+        run: |
+          python scripts/01d_merge_libradtran.py
+          python - <<'PY'
+          import json
+          a = json.load(open("data/rt/lut_libradtran_s2.json")); b = json.load(open("data/rt/lut_s2.json"))
+          for band in ["S2_02", "S2_04", "S2_08", "S2_09", "S2_11", "S2_12"]:
+              va, vb = a["bands"][band]["values"], b["bands"][band]["values"]
+              print(band, "libRadtran", va[0][0][0][0], "\n      6S        ", vb[0][0][0][0])
+          t = json.load(open("data/rt/lut_libradtran_tir.json"))
+          print("TIR B10", t["bands"]["L8_B10"]["values"][0][0], "B11", t["bands"]["L8_B11"]["values"][0][0])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: inputs.mode == 'full'
+        with:
+          name: lrt-${{ matrix.part }}
+          path: data/rt/parts_lrt/*.npz
+
+  save:
+    if: inputs.mode == 'full'
+    needs: lut
+    runs-on: ubuntu-latest
+    concurrency:
+      group: data-writes
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy Py6S
+      - uses: actions/download-artifact@v4
+        with:
+          path: data/rt/parts_lrt
+          merge-multiple: true
+      - name: Unisci e salva
+        run: |
+          python scripts/01d_merge_libradtran.py
+          rm -rf data/rt/parts_lrt
+          git config user.name "torricelli-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/rt
+          git commit -m "LUT libRadtran (VNIR-SWIR e LWIR)" || exit 0
+          git pull --rebase origin main && git push
