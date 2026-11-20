@@ -15,7 +15,7 @@ Uscite: data/obs/gnss/YYYY-MM.parquet   (site = "GNSS_<STA>", lat, lon, elev, ti
         data/obs/gnss_sites.csv          (stazioni scelte)
         data/obs/gnss_done.csv           (stazione-anno gia' letti; l'anno in corso si rilegge sempre)
 
-Uso:  python scripts/04b_fetch_gnss.py                     (ultimi 7 giorni)
+Uso:  python scripts/04b_fetch_gnss.py                     (ultimi 45 giorni: NGL pubblica con ~2 settimane di ritardo)
       python scripts/04b_fetch_gnss.py --start 2025-01-01 --end 2025-12-31
 """
 import argparse
@@ -51,7 +51,7 @@ ap.add_argument("--workers", type=int, default=8)
 ap.add_argument("--max-stations", type=int, default=0, help="solo per prove: limita il numero di stazioni")
 args = ap.parse_args()
 end = date.fromisoformat(args.end) if args.end else date.today()
-start = date.fromisoformat(args.start) if args.start else end - timedelta(days=7)
+start = date.fromisoformat(args.start) if args.start else end - timedelta(days=45)  # NGL ha ~2 settimane di ritardo
 
 # %% elenco delle stazioni NGL attive nel periodo
 txt = SESSION.get(LIST, timeout=120).text.splitlines()
@@ -71,6 +71,9 @@ st = st[(st["fin"] >= pd.Timestamp(start)) & (st["beg"] <= pd.Timestamp(end))
         & st["lat"].between(*BOX["lat"]) & st["lon"].between(*BOX["lon"])].copy()
 st["years"] = (st["fin"] - st["beg"]).dt.days / 365.25
 print(f"{len(st)} stazioni NGL attive nell'area")
+if st.empty:
+    print("   nessuna stazione con dati nel periodo (ritardo NGL?): niente da aggiornare")
+    sys.exit(0)
 
 # %% scelta: una per cella di 1 grado in Italia + la piu' vicina a ogni sito AERONET (entro 30 km)
 it = st[st["lat"].between(*ITALY["lat"]) & st["lon"].between(*ITALY["lon"])].copy()

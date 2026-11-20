@@ -13,7 +13,7 @@ Input:  data/obs/aeronet/ e data/obs/gnss/ YYYY-MM.parquet (siti e ore con misur
 Uscite: data/obs/model_at_aeronet/YYYY-MM.parquet  (site, time_utc, tcwv_model, t2m_c, rh2m, ps_hpa, aod_model, dust_ugm3)
         data/csv/obs/model_at_aeronet/YYYY-MM.csv
 
-Uso:  python scripts/05_model_at_aeronet.py                     (ultimi 7 giorni)
+Uso:  python scripts/05_model_at_aeronet.py                     (ultimi 21 giorni)
       python scripts/05_model_at_aeronet.py --start 2026-01-01 --end 2026-03-31
 """
 import argparse
@@ -42,7 +42,7 @@ ap.add_argument("--start")
 ap.add_argument("--end")
 args = ap.parse_args()
 end = date.fromisoformat(args.end) if args.end else date.today()
-start = date.fromisoformat(args.start) if args.start else end - timedelta(days=7)
+start = date.fromisoformat(args.start) if args.start else end - timedelta(days=21)  # 21 giorni: i dati GNSS (NGL) arrivano con ~2 settimane di ritardo
 
 # %% siti con misure nel periodo
 months = pd.period_range(start, end, freq="M").strftime("%Y-%m")
